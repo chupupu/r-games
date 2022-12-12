@@ -1,0 +1,238 @@
+---
+pdf_document: default
+author: "<font color=#800080>狗狗統軟特攻隊 (鄒嘉霖、廖廣筑、李郁青)</font>"
+
+output:
+  html_document: default
+  pdf_document: default
+title: "<font color=#800080>音樂是否對心理健康改善有幫助</font>"
+---
+--------------------------------------------------
+
+```{r echo = FALSE}
+library(MASS)
+library(ggplot2)
+library(lattice)
+library(caret)
+
+```
+----------------------------------------------------
+
+# <font size=15>**<font color=#000080>Main Question</font>**</font>
+
+-    <font color=#000080><font size=6>聽音樂是否對心理健康改善有幫助</font></font>
+-    資料來源 : (https://www.kaggle.com/datasets/catherinerasgaitis/mxmh-survey-results)
+
+-----------------------------------------------------------------
+
+# **<u>動機</u>**
+-    <font size=4>我們這組的人都很喜歡聽音樂，音樂對我們來說是短暫逃離現實的綠洲。
+所以我們很好奇聽的音樂類型與頻率對於心理健康會不會改善。</font>
+
+-----------------------------------------------------------
+
+
+
+### **<font color=#191970>1.年齡分布</font>**
+
+```{r echo = FALSE}
+myData <- read.table(file = 'DataSet.txt',
+                     sep = '\t',
+                     header = TRUE,
+                     stringsAsFactors = FALSE)
+ageTable <- as.data.frame(table(myData$Age))
+colnames(ageTable) <- c("年紀", "次數")
+
+plot(x = ageTable$年紀,
+     y = ageTable$次數,
+     type = "p",
+     main = "各年齡人次",
+     xlab = "年齡",
+     ylab = "人次",
+     col = 'blue',
+     pch = 16,
+     cex = 1)
+```
+--------------------------------------------------------------------------
+
+### **<font color=#191970>2.聽音樂頻率(小時/天)</font>**
+
+```{r echo = FALSE}
+
+freqTable <- as.data.frame(table(myData$Hours.per.day))
+colnames(freqTable) <- c("頻率", "次數")
+
+plot(x = freqTable$頻率,
+     y = freqTable$次數,
+     type = "p",
+     main = "各頻率人次",
+     xlab = "Hours/day",
+     ylab = "人次",
+     col = 'blue',
+     pch = 2,
+     cex = 1)
+```
+-----------------------------------------------------------------------
+
+### **<font color=#191970>3.音樂類型</font>**
+
+```{r echo = FALSE}
+
+typeTable <- as.data.frame(table(myData$Fav.type))
+colnames(typeTable) <- c("類型", "次數")
+
+barplot(height = typeTable$次數,
+        names.arg = typeTable$類型,
+        main = "各類型音樂人次",
+        xlab = "Type",
+        ylab = "人次")
+```
+-------------------------------------------------------------------------
+
+### **<font color=#191970>4.是否改善</font>**
+
+```{r echo = FALSE}
+improveTable <- as.data.frame(table(myData$Music.effects))
+colnames(improveTable) <- c("改善", "次數")
+
+barplot(height = improveTable$次數,
+        names.arg = c("No effect", "Improve"),
+        main = "聽音樂後是否改善心理狀況",
+        xlab = "Improve",
+        ylab = "人次")
+```
+----------------------------------------------------------------------------
+
+### <font color=#800000>Training 與 Test set</font>
+
+
+```{r echo = FALSE}
+
+
+myData$Music.effects<-factor(myData$Music.effects,levels=c(0,1))
+
+#將資料分成Training 和 Test set
+myData$Test<-F    #新增一個參數紀錄分組
+myData[sample(1:nrow(myData),nrow(myData)/3),"Test"]<-T   #隨機取1/3當Test set
+c(sum(myData$Test==F),sum(myData$Test==T))   # 展示樣本數比(Training set : Test set)
+
+```
+----------------------------------------------------------------------------------------------
+
+# **<u>頻率與心理狀況改善</u>**
+
+```{r echo = FALSE}
+MODEL1 <- glm(Music.effects ~ Hours.per.day,
+              data = myData[myData$Test==F,],
+              family = "binomial")
+summary(MODEL1)
+
+```
+---------------------------------------------------------------
+
+### **改善機率**
+
+```{r echo = FALSE}
+improveProb1<-predict(MODEL1, # 用Training set做的模型
+                      newdata = myData[myData$Test==T,], #Test==T, test data
+                      type="response") #結果為每個人聽音樂改善心理狀況的機率
+head(improveProb1)
+
+```
+---------------------------------------------------------------------------------
+
+# **<u>R&B與心理狀況改善</u>**
+```{r echo = FALSE}
+ALLMODEL <- glm(Music.effects ~ 
+                  Hours.per.day+Classical+Country+EDM+Folk+Gospel+Hip.hop+Jazz+K.pop+Latin+Lofi+Metal+Pop+R.B+Rap+Rock+Video.game.music,
+                data = myData[myData$Test==F,],
+                family = "binomial")
+
+MODEL2 <- glm(Music.effects ~ R.B,
+              data = myData[myData$Test==F,],
+              family = "binomial")
+summary(MODEL2)
+
+```
+----------------------------------------------------------------------
+
+### **改善機率**
+
+```{r echo = FALSE}
+improveProb2<-predict(MODEL2, # 用Training set做的模型
+                      newdata = myData[myData$Test==T,], #Test==T, test data
+                      type="response") #結果為每個人聽音樂改善心理狀況的機率
+head(improveProb2)
+
+```
+-----------------------------------------------------------------------------------
+
+# **<u>stepAIC函數</u>**
+
+```{r echo = FALSE}
+mylogit <- glm(Music.effects ~ Hours.per.day+Classical+Country+
+                 EDM+Folk+Gospel+Hip.hop+Jazz+K.pop+Latin+Lofi+Metal+
+                 Pop+R.B+Rap+Rock+Video.game.music,
+               data = myData[myData$Test==F,],
+               family = "binomial")
+MODEL3<-stepAIC(mylogit,direction = "both",trace=FALSE) # 雙向逐步選擇模型
+summary(MODEL3)
+```
+---------------------------------------------------------------------------------------
+
+### **改善機率**
+
+```{r echo = FALSE}
+
+improveProb3<-predict(MODEL3, # 用Training set做的模型
+                      newdata = myData[myData$Test==T,], #Test==T, test data
+                      type="response") #結果為每個人聽音樂改善心理狀況的機率
+
+head(improveProb3)
+
+```
+---------------------------------------------------------------------------------------
+
+## **<u>驗證</u>**
+
+```{r echo = FALSE}
+verify <- list(table(improveProb1>0.75,myData[myData$Test==T,]$Music.effects),
+               table(improveProb1>0.73,myData[myData$Test==T,]$Music.effects),
+               table(improveProb1>0.71,myData[myData$Test==T,]$Music.effects),
+               table(improveProb2>0.8,myData[myData$Test==T,]$Music.effects),
+               table(improveProb2>0.73,myData[myData$Test==T,]$Music.effects),
+               table(improveProb2>0.67,myData[myData$Test==T,]$Music.effects),
+               table(improveProb3>0.8,myData[myData$Test==T,]$Music.effects),
+               table(improveProb3>0.7,myData[myData$Test==T,]$Music.effects),
+               table(improveProb3>0.65,myData[myData$Test==T,]$Music.effects))
+verify
+```
+------------------------------------------------------------------------------------
+
+# **<u>模型比較</u>**
+
+```{r echo = FALSE}
+improveAns1<-factor(ifelse(improveProb1>0.73,1,0),levels=c(0,1))
+indicator1 <- c(sensitivity(improveAns1,myData[myData$Test==T,]$Music.effects,positive = "1"),
+                specificity(improveAns1,myData[myData$Test==T,]$Music.effects,negative = "0"),
+                posPredValue(improveAns1,myData[myData$Test==T,]$Music.effects,positive = "1"),
+                negPredValue(improveAns1,myData[myData$Test==T,]$Music.effects,negative = "0"))
+
+improveAns2<-factor(ifelse(improveProb2>0.73,1,0),levels=c(0,1))
+indicator2 <- c(sensitivity(improveAns2,myData[myData$Test==T,]$Music.effects,positive = "1"),
+                specificity(improveAns2,myData[myData$Test==T,]$Music.effects,negative = "0"),
+                posPredValue(improveAns2,myData[myData$Test==T,]$Music.effects,positive = "1"),
+                negPredValue(improveAns2,myData[myData$Test==T,]$Music.effects,negative = "0"))
+
+improveAns3<-factor(ifelse(improveProb3>0.73,1,0),levels=c(0,1))
+indicator3 <- c(sensitivity(improveAns3,myData[myData$Test==T,]$Music.effects,positive = "1"),
+                specificity(improveAns3,myData[myData$Test==T,]$Music.effects,negative = "0"),
+                posPredValue(improveAns3,myData[myData$Test==T,]$Music.effects,positive = "1"),
+                negPredValue(improveAns3,myData[myData$Test==T,]$Music.effects,negative = "0"))
+
+indicator <- data.frame(indicator1 , indicator2, indicator3)
+rownames(indicator) <- c("sensitivity", "specificity", "posPredValue", "negPredValue")
+colnames(indicator) <- c("Model1", "Model2", "Model3")
+indicator
+
+```
